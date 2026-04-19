@@ -10,6 +10,7 @@ class MLP1Hidden:
         n_hidden: int,
         n_outputs: int,
         learning_rate: float = 0.5,
+        momentum: float = 0.0,
         beta: float = 0.5,
         epsilon: float = 1e-3,
         max_epochs: int = 5000,
@@ -20,6 +21,7 @@ class MLP1Hidden:
         self.n_outputs = n_outputs
 
         self.learning_rate = learning_rate
+        self.momentum = momentum
         self.beta = beta
         self.epsilon = epsilon
         self.max_epochs = max_epochs
@@ -29,6 +31,8 @@ class MLP1Hidden:
         # Pesos inicializados no intervalo [0, 1], como pedido no enunciado.
         self.W1 = self.rng.uniform(0.0, 1.0, size=(n_inputs + 1, n_hidden))
         self.W2 = self.rng.uniform(0.0, 1.0, size=(n_hidden + 1, n_outputs))
+        self.prev_delta_W1 = np.zeros_like(self.W1)
+        self.prev_delta_W2 = np.zeros_like(self.W2)
 
         self.history_mse = []
 
@@ -59,6 +63,9 @@ class MLP1Hidden:
         """Treina com backpropagation online (amostra por amostra)."""
         X = np.asarray(X, dtype=float)
         y = np.asarray(y, dtype=float)
+        self.history_mse = []
+        self.prev_delta_W1 = np.zeros_like(self.W1)
+        self.prev_delta_W2 = np.zeros_like(self.W2)
 
         if y.ndim == 1:
             y = y.reshape(-1, 1)
@@ -86,8 +93,14 @@ class MLP1Hidden:
                 grad_W2 = y_hidden_b.T @ delta_out
                 grad_W1 = Xb.T @ delta_hidden
 
-                self.W2 += self.learning_rate * grad_W2
-                self.W1 += self.learning_rate * grad_W1
+                delta_W2 = self.learning_rate * grad_W2 + self.momentum * self.prev_delta_W2
+                delta_W1 = self.learning_rate * grad_W1 + self.momentum * self.prev_delta_W1
+
+                self.W2 += delta_W2
+                self.W1 += delta_W1
+
+                self.prev_delta_W2 = delta_W2
+                self.prev_delta_W1 = delta_W1
 
             mse = squared_error_sum / n_samples
             self.history_mse.append(mse)
